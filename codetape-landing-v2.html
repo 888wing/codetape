@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Codetape — The flight recorder for AI coding</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#08080a;
+  --surface:#0e0e12;
+  --surface2:#141418;
+  --amber:#f0a030;
+  --amber-dim:#a07020;
+  --amber-glow:rgba(240,160,48,0.06);
+  --red:#e84040;
+  --green:#30d880;
+  --blue:#40a0f0;
+  --cyan:#40e8d0;
+  --text:#e8e4dc;
+  --text-dim:#605848;
+  --text-mid:#988870;
+  --mono:'Space Mono',monospace;
+  --sans:'Outfit',sans-serif;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:hidden;line-height:1.6}
+body::before{
+  content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity:0.025;
+}
+::selection{background:rgba(240,160,48,0.25);color:#fff}
+
+/* ASCII HELPERS */
+.ascii{font-family:var(--mono);white-space:pre;line-height:1.35;font-size:13px;color:var(--amber-dim);user-select:none}
+.ascii-sm{font-size:11px}
+.ascii-lg{font-size:15px}
+.ascii-amber{color:var(--amber)}
+.ascii-dim{color:var(--text-dim)}
+.ascii-mid{color:var(--text-mid)}
+.ascii-red{color:var(--red)}
+.ascii-green{color:var(--green)}
+.ascii-blue{color:var(--blue)}
+.ascii-cyan{color:var(--cyan)}
+.ascii-center{text-align:center}
+
+/* SCANLINES */
+.scanlines{position:relative}
+.scanlines::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);
+}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  padding:0 32px;height:48px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(8,8,10,0.9);backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(240,160,48,0.08);
+  font-family:var(--mono);font-size:12px;
+}
+.nav-left{display:flex;align-items:center;gap:16px}
+.nav-logo{color:var(--amber);font-weight:700;text-decoration:none;letter-spacing:-0.5px}
+.nav-sep{color:var(--text-dim)}
+.nav-status{color:var(--green);font-size:10px;display:flex;align-items:center;gap:6px}
+.nav-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.nav-links{display:flex;gap:20px;align-items:center}
+.nav-links a{color:var(--text-dim);text-decoration:none;font-size:11px;transition:color .2s}
+.nav-links a:hover{color:var(--amber)}
+.nav-cta{
+  color:var(--bg)!important;background:var(--amber);
+  padding:5px 14px;border-radius:3px;font-weight:700;font-size:10px;
+  letter-spacing:0.5px;text-transform:uppercase;transition:all .2s;
+}
+.nav-cta:hover{background:#ffc040}
+
+/* HERO */
+.hero{
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:100px 24px 60px;position:relative;
+}
+.hero::before{
+  content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:600px;height:600px;
+  background:radial-gradient(circle,var(--amber-glow) 0%,transparent 70%);
+  pointer-events:none;
+}
+.hero-ascii{
+  animation:fadein 0.6s ease both;
+  margin-bottom:40px;
+}
+@keyframes fadein{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+.hero h1{
+  font-size:clamp(40px,7vw,68px);font-weight:900;line-height:1.05;
+  letter-spacing:-3px;text-align:center;margin-bottom:20px;
+}
+.hero h1 .amber{color:var(--amber)}
+.hero-sub{
+  font-size:clamp(15px,2vw,18px);color:var(--text-mid);
+  max-width:520px;text-align:center;line-height:1.7;font-weight:400;
+  animation:fadein 0.6s ease 0.3s both;
+}
+.hero-sub strong{color:var(--text);font-weight:500}
+
+.install-row{
+  margin-top:36px;display:flex;align-items:center;gap:12px;
+  animation:fadein 0.6s ease 0.45s both;
+}
+.install-box{
+  background:var(--surface);border:1px solid rgba(240,160,48,0.12);
+  border-radius:4px;padding:12px 20px;cursor:pointer;transition:all .2s;
+  font-family:var(--mono);font-size:13px;display:flex;align-items:center;gap:10px;
+  position:relative;
+}
+.install-box:hover{border-color:rgba(240,160,48,0.3);background:var(--surface2)}
+.install-box .p{color:var(--green)}
+.install-box .c{color:var(--amber)}
+.install-box .cp{
+  color:var(--text-dim);font-size:11px;transition:color .2s;
+}
+.install-box:hover .cp{color:var(--amber)}
+.install-box .toast{
+  position:absolute;top:-28px;left:50%;transform:translateX(-50%);
+  font-size:10px;color:var(--green);opacity:0;transition:all .2s;
+  background:var(--surface);padding:2px 8px;border-radius:2px;
+  border:1px solid rgba(48,216,128,0.2);pointer-events:none;
+}
+.install-box .toast.show{opacity:1;top:-32px}
+
+/* SECTIONS */
+section{padding:80px 24px;position:relative}
+.section-inner{max-width:900px;margin:0 auto}
+.divider{
+  text-align:center;padding:0 24px;
+  font-family:var(--mono);font-size:11px;color:var(--text-dim);
+  user-select:none;overflow:hidden;
+}
+
+/* PROBLEM */
+.problem{background:var(--surface);border-top:1px solid rgba(240,160,48,0.06);border-bottom:1px solid rgba(240,160,48,0.06)}
+.problem-header{text-align:center;margin-bottom:48px}
+.problem-header h2{font-size:clamp(28px,4.5vw,42px);font-weight:800;letter-spacing:-1.5px;margin-top:12px}
+.problem-header h2 .red{color:var(--red)}
+.problem-header p{color:var(--text-mid);font-size:16px;margin-top:8px;max-width:500px;margin-left:auto;margin-right:auto}
+
+.drift-display{
+  max-width:600px;margin:0 auto;
+  background:var(--bg);border:1px solid rgba(240,160,48,0.08);
+  border-radius:6px;overflow:hidden;
+}
+.drift-bar-top{
+  padding:8px 16px;
+  border-bottom:1px solid rgba(240,160,48,0.06);
+  font-family:var(--mono);font-size:10px;color:var(--text-dim);
+  display:flex;justify-content:space-between;
+}
+.drift-content{padding:20px}
+.drift-row{
+  display:flex;align-items:center;font-family:var(--mono);font-size:12px;
+  margin-bottom:6px;gap:4px;
+}
+.drift-label{min-width:80px;color:var(--text-dim);text-align:right;padding-right:10px}
+.drift-meter{flex:1;display:flex;gap:1px}
+.drift-meter span{display:inline-block;width:8px;height:14px;border-radius:1px;background:rgba(255,255,255,0.04)}
+.drift-meter span.on-g{background:var(--green)}
+.drift-meter span.on-b{background:var(--blue)}
+.drift-meter span.on-a{background:var(--amber)}
+.drift-meter span.on-r{background:var(--red)}
+.drift-val{min-width:40px;text-align:right;padding-left:8px;font-size:10px}
+
+.problems-list{
+  max-width:600px;margin:40px auto 0;
+  display:flex;flex-direction:column;gap:0;
+}
+.problem-item{
+  padding:16px 0;border-bottom:1px solid rgba(240,160,48,0.04);
+  display:flex;gap:16px;align-items:flex-start;
+}
+.problem-item:last-child{border-bottom:none}
+.pi-icon{
+  font-family:var(--mono);font-size:12px;
+  min-width:40px;text-align:center;
+  padding:4px 0;color:var(--red);
+}
+.pi-text h4{font-size:15px;font-weight:600;margin-bottom:2px}
+.pi-text p{font-size:13px;color:var(--text-dim);line-height:1.6}
+
+/* FEATURES */
+.features-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:2px;
+  margin-top:48px;background:rgba(240,160,48,0.04);border-radius:8px;overflow:hidden;
+}
+.feat{
+  background:var(--bg);padding:28px;
+  transition:background .2s;position:relative;
+}
+.feat:hover{background:var(--surface)}
+.feat-cmd{
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  color:var(--amber);margin-bottom:12px;display:flex;align-items:center;gap:8px;
+}
+.feat-cmd::before{content:'▸';color:var(--amber-dim)}
+.feat h3{font-size:16px;font-weight:700;margin-bottom:6px;letter-spacing:-0.3px}
+.feat p{font-size:13px;color:var(--text-dim);line-height:1.6}
+.feat-span{grid-column:1/-1}
+
+/* HOW IT WORKS */
+.how{background:var(--surface);border-top:1px solid rgba(240,160,48,0.06);border-bottom:1px solid rgba(240,160,48,0.06)}
+.how-header{text-align:center;margin-bottom:48px}
+.how-header h2{font-size:clamp(28px,4.5vw,42px);font-weight:800;letter-spacing:-1.5px;margin-top:12px}
+
+/* DEMO TERMINAL */
+.terminal{
+  max-width:660px;margin:0 auto;
+  background:var(--bg);border:1px solid rgba(240,160,48,0.1);
+  border-radius:6px;overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);
+}
+.term-bar{
+  height:32px;background:var(--surface2);
+  display:flex;align-items:center;gap:6px;padding:0 12px;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+}
+.term-dot{width:8px;height:8px;border-radius:50%;opacity:0.7}
+.term-dot.r{background:#ff5f57}.term-dot.y{background:#febc2e}.term-dot.g{background:#28c840}
+.term-title{flex:1;text-align:center;font-family:var(--mono);font-size:10px;color:var(--text-dim)}
+.term-body{
+  padding:16px 20px;font-family:var(--mono);font-size:11.5px;line-height:1.85;
+  min-height:200px;
+}
+.tp{color:var(--green)}.tc{color:var(--text)}.td{color:var(--text-dim)}
+.ta{color:var(--amber)}.tr{color:var(--red)}.tg{color:var(--green)}
+.tb{color:var(--blue)}.tcy{color:var(--cyan)}
+
+/* BEFORE / AFTER */
+.ba{margin-top:60px}
+.ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:32px}
+.ba-card{
+  background:var(--surface);border-radius:6px;
+  padding:24px;font-family:var(--mono);font-size:11.5px;line-height:1.8;
+  border:1px solid transparent;
+}
+.ba-card.before{border-color:rgba(232,64,64,0.12)}
+.ba-card.after{border-color:rgba(48,216,128,0.12)}
+
+/* CTA */
+.cta{text-align:center;padding:100px 24px}
+.cta h2{font-size:clamp(32px,5vw,52px);font-weight:900;letter-spacing:-2.5px;line-height:1.1;margin-bottom:12px}
+.cta p{color:var(--text-mid);font-size:16px;margin-bottom:40px;max-width:460px;margin-left:auto;margin-right:auto}
+.cta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn-p{
+  background:var(--amber);color:var(--bg);
+  padding:12px 28px;border-radius:4px;font-weight:700;font-size:13px;
+  text-decoration:none;transition:all .2s;
+  font-family:var(--mono);letter-spacing:-0.3px;
+}
+.btn-p:hover{background:#ffc040;transform:translateY(-1px);box-shadow:0 6px 20px rgba(240,160,48,0.2)}
+.btn-s{
+  background:transparent;color:var(--text-mid);
+  padding:12px 28px;border-radius:4px;font-weight:600;font-size:13px;
+  text-decoration:none;transition:all .2s;border:1px solid rgba(255,255,255,0.08);
+}
+.btn-s:hover{border-color:rgba(240,160,48,0.3);color:var(--amber)}
+
+/* FOOTER */
+footer{
+  border-top:1px solid rgba(240,160,48,0.06);
+  padding:32px 24px;font-family:var(--mono);font-size:11px;color:var(--text-dim);
+}
+.footer-inner{max-width:900px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
+.footer-links{display:flex;gap:20px}
+.footer-links a{color:var(--text-dim);text-decoration:none;transition:color .2s}
+.footer-links a:hover{color:var(--amber)}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .hero-ascii{transform:scale(0.6);transform-origin:center}
+  .features-grid{grid-template-columns:1fr}
+  .ba-grid{grid-template-columns:1fr}
+  .ascii{font-size:10px}
+  .drift-meter span{width:6px;height:10px}
+  nav .nav-links a:not(.nav-cta){display:none}
+  .footer-inner{flex-direction:column;gap:12px}
+}
+@media(max-width:480px){
+  .hero-ascii{transform:scale(0.42)}
+  .problem-item{flex-direction:column;gap:4px}
+}
+
+/* SCROLL REVEAL */
+.reveal{opacity:0;transform:translateY(40px);transition:opacity 0.6s ease,transform 0.6s ease}
+.reveal.visible{opacity:1;transform:none}
+.reveal-children>*{opacity:0;transform:translateY(30px);transition:opacity 0.5s ease,transform 0.5s ease}
+.reveal-children.visible>*{opacity:1;transform:none}
+.reveal-children.visible>*:nth-child(1){transition-delay:0s}
+.reveal-children.visible>*:nth-child(2){transition-delay:0.08s}
+.reveal-children.visible>*:nth-child(3){transition-delay:0.16s}
+.reveal-children.visible>*:nth-child(4){transition-delay:0.24s}
+.reveal-children.visible>*:nth-child(5){transition-delay:0.32s}
+.reveal-children.visible>*:nth-child(6){transition-delay:0.4s}
+/* DIVIDER TYPEWRITER */
+.divider pre{display:inline-block;max-width:0;overflow:hidden;white-space:nowrap;transition:max-width 1.2s ease}
+.divider.visible pre{max-width:800px}
+
+/* DRIFT METER ANIMATION */
+.drift-meter span{transform:scaleY(0.3);opacity:0}
+.drift-meter span.filling{animation:barFill 0.3s ease forwards}
+@keyframes barFill{from{opacity:0;transform:scaleY(0.3)}to{opacity:1;transform:scaleY(1)}}
+.drift-glow{animation:driftGlow 1s ease 0.8s both}
+@keyframes driftGlow{0%{box-shadow:none}50%{box-shadow:0 0 20px rgba(240,160,48,0.15)}100%{box-shadow:none}}
+
+/* HERO SPLIT LETTER */
+.hero h1 .letter{display:inline-block;opacity:0;transform:translateY(20px);animation:letterIn 0.4s ease forwards}
+@keyframes letterIn{to{opacity:1;transform:none}}
+.hero h1 .letter-space{display:inline-block;width:0.3em}
+/* SCROLL BOUNCE */
+.scroll-hint{animation:bounce 2s ease-in-out infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-left">
+    <a href="#" class="nav-logo">■ codetape</a>
+    <span class="nav-sep">│</span>
+    <span class="nav-status">v0.1.0 recording</span>
+  </div>
+  <div class="nav-links">
+    <a href="#features">features</a>
+    <a href="#how">how it works</a>
+    <a href="#demo">demo</a>
+    <a href="#" class="nav-cta">★ GitHub</a>
+  </div>
+</nav>
+
+<!-- ═══════════ HERO ═══════════ -->
+<section class="hero">
+  <div class="hero-ascii">
+<pre class="ascii ascii-amber" style="font-size:12px">
+    ┌──────────────────────────────────────────────────┐
+    │  ╔══════════════════════════════════════════════╗ │
+    │  ║  ░█▀▀ ░█▀█ ░█▀▄ ░█▀▀ ▀█▀ ░█▀█ ░█▀█ ░█▀▀  ║ │
+    │  ║  ░█   ░█░█ ░█░█ ░█▀▀ ░█  ░█▀█ ░█▀▀ ░█▀▀  ║ │
+    │  ║  ░▀▀▀ ░▀▀▀ ░▀▀  ░▀▀▀ ░▀  ░▀░▀ ░▀   ░▀▀▀  ║ │
+    │  ║                                              ║ │
+    │  ║  <span class="ascii-dim">the flight recorder for AI coding</span>        ║ │
+    │  ║  <span class="ascii-dim">───────────────────────────────</span>        ║ │
+    │  ║  <span class="ascii-dim">────────────────────────</span>               ║ │
+    │  ╠══════════════════════════════════════════════╣ │
+    │  ║                                    <span class="ascii-dim">SIDE A</span>   ║ │
+    │  ║     ┌───────┐           ┌───────┐  <span class="ascii-dim">▸ REC</span>    ║ │
+    │  ║     │ ╭───╮ │░░░░░░░░░░░│ ╭───╮ │           ║ │
+    │  ║     │ │ ◎ │ │░░░░░░░░░░░│ │ ◎ │ │           ║ │
+    │  ║     │ ╰───╯ │░░░░░░░░░░░│ ╰───╯ │           ║ │
+    │  ║     └───────┘           └───────┘           ║ │
+    │  ╚══════════════════════════════════════════════╝ │
+    │  ◉                                            ◉  │
+    └──────────────────────────────────────────────────┘</pre>
+  </div>
+
+  <h1>Your code moves fast.<br><span class="amber">Your docs don't.</span></h1>
+  <p class="hero-sub">
+    Codetape records <strong>what changed, why, and what it broke</strong> — every time an AI agent touches your code. Then syncs your README, CLAUDE.md, and CHANGELOG. <strong>Automatically.</strong>
+  </p>
+
+  <div class="install-row">
+    <div class="install-box" onclick="copyCmd(this)">
+      <span class="p">$</span>
+      <span class="c">npx codetape init</span>
+      <span class="cp">[copy]</span>
+      <span class="toast">copied!</span>
+    </div>
+  </div>
+
+  <div class="scroll-hint" style="margin-top:48px">
+    <pre class="ascii ascii-dim" style="font-size:10px;text-align:center">
+        ▼ scroll to learn more ▼
+  ───────────────────────────────</pre>
+  </div>
+</section>
+
+<!-- ═══════════ DIVIDER ═══════════ -->
+<div class="divider reveal"><pre class="ascii ascii-dim ascii-sm">
+═══════════════════════════════════╡ THE PROBLEM ╞═══════════════════════════════════</pre></div>
+
+<!-- ═══════════ PROBLEM ═══════════ -->
+<section class="problem" id="problem">
+  <div class="section-inner">
+    <div class="problem-header reveal">
+<pre class="ascii ascii-red ascii-sm" style="margin-bottom:16px">
+    ██╗    ██╗ █████╗ ██████╗ ███╗   ██╗██╗███╗   ██╗ ██████╗
+    ██║    ██║██╔══██╗██╔══██╗████╗  ██║██║████╗  ██║██╔════╝
+    ██║ █╗ ██║███████║██████╔╝██╔██╗ ██║██║██╔██╗ ██║██║  ███╗
+    ╚██╗╚██╔╝██╔══██║██╔══██╗██║╚██╗██║██║██║╚██╗██║██║   ██║
+     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝ ╚═══╝╚═╝╚═╝ ╚═══╝╚══════╝</pre>
+      <h2>Documentation <span class="red">drift</span> is<br>eating your codebase</h2>
+      <p>One AI session. 40 files changed. Your README is still describing last month's architecture.</p>
+    </div>
+
+    <!-- DRIFT METERS -->
+    <div class="drift-display scanlines reveal">
+      <div class="drift-bar-top">
+        <span>DOCUMENTATION FRESHNESS MONITOR</span>
+        <span style="color:var(--red)">● REC</span>
+      </div>
+      <div class="drift-content">
+        <div class="drift-row">
+          <span class="drift-label">Code</span>
+          <div class="drift-meter" id="dm-code"></div>
+          <span class="drift-val" style="color:var(--green)">LIVE</span>
+        </div>
+        <div class="drift-row">
+          <span class="drift-label">Git log</span>
+          <div class="drift-meter" id="dm-git"></div>
+          <span class="drift-val" style="color:var(--blue)">~1d</span>
+        </div>
+        <div class="drift-row">
+          <span class="drift-label">CLAUDE.md</span>
+          <div class="drift-meter" id="dm-claude"></div>
+          <span class="drift-val" style="color:var(--amber)">~2w</span>
+        </div>
+        <div class="drift-row">
+          <span class="drift-label">README</span>
+          <div class="drift-meter" id="dm-readme"></div>
+          <span class="drift-val" style="color:var(--red)">~2mo</span>
+        </div>
+        <div class="drift-row">
+          <span class="drift-label">Arch docs</span>
+          <div class="drift-meter" id="dm-arch"></div>
+          <span class="drift-val" style="color:var(--red)">???</span>
+        </div>
+        <div style="margin-top:16px;padding-top:14px;border-top:1px dashed rgba(240,160,48,0.1)">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--green);margin-bottom:8px;letter-spacing:1px">▸ WITH CODETAPE</div>
+          <div class="drift-row">
+            <span class="drift-label" style="color:var(--green)">All docs</span>
+            <div class="drift-meter" id="dm-all"></div>
+            <span class="drift-val" style="color:var(--green)">~1d</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROBLEM POINTS -->
+    <div class="problems-list reveal-children">
+      <div class="problem-item">
+        <div class="pi-icon"><pre class="ascii ascii-red" style="font-size:16px">╳</pre></div>
+        <div class="pi-text">
+          <h4>Silent divergence</h4>
+          <p>Docs say "instant charge". Code says "pre-auth". Nobody notices until a new hire reads the README and gets confused.</p>
+        </div>
+      </div>
+      <div class="problem-item">
+        <div class="pi-icon"><pre class="ascii ascii-red" style="font-size:16px">⟳</pre></div>
+        <div class="pi-text">
+          <h4>Decision amnesia</h4>
+          <p>You chose X over Y for good reasons. Three weeks later, Claude rewrites it to Y because nobody recorded why.</p>
+        </div>
+      </div>
+      <div class="problem-item">
+        <div class="pi-icon"><pre class="ascii ascii-red" style="font-size:16px">⧗</pre></div>
+        <div class="pi-text">
+          <h4>CLAUDE.md goes stale</h4>
+          <p>The file that tells your AI how the project works is the one file nobody updates after AI rewrites everything.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ DIVIDER ═══════════ -->
+<div class="divider reveal"><pre class="ascii ascii-dim ascii-sm">
+═══════════════════════════════════╡ FEATURES ╞════════════════════════════════════</pre></div>
+
+<!-- ═══════════ FEATURES ═══════════ -->
+<section id="features">
+  <div class="section-inner">
+    <div class="reveal" style="text-align:center;margin-bottom:8px">
+<pre class="ascii ascii-amber ascii-sm" style="margin-bottom:16px">
+  ┌─────────────────────────────────────────────┐
+  │  7 commands  ·  0 config  ·  0 dependencies │
+  └─────────────────────────────────────────────┘</pre>
+      <h2 style="font-size:clamp(28px,4.5vw,42px);font-weight:800;letter-spacing:-1.5px">All your docs,<br>always fresh.</h2>
+    </div>
+
+    <div class="features-grid reveal-children">
+      <div class="feat">
+        <div class="feat-cmd">/trace</div>
+        <h3>Record a session</h3>
+        <p>Captures what changed, why it changed, and what it affects. Not a diff — a story your future self can read in 30 seconds.</p>
+<pre class="ascii ascii-dim" style="margin-top:12px;font-size:10px">
+ ┌─ trace ────────────────┐
+ │ ◉ PaymentService  MOD  │
+ │ ◉ StripeWebhook   NEW  │
+ │ ◉ BookingFlow     MOD  │
+ │ ◎ 2 decisions logged   │
+ └────────────────────────┘</pre>
+      </div>
+      <div class="feat">
+        <div class="feat-cmd">/trace-sync</div>
+        <h3>Sync your docs</h3>
+        <p>Updates README, CHANGELOG, CLAUDE.md, and AGENTS.md from your trace history. Only touches managed sections.</p>
+<pre class="ascii ascii-dim" style="margin-top:12px;font-size:10px">
+ README.md
+ ├── Getting Started  <span class="ascii-mid">[yours]</span>
+ ├── Architecture     <span class="ascii-green">[synced]</span>
+ ├── Components       <span class="ascii-green">[synced]</span>
+ └── License          <span class="ascii-mid">[yours]</span></pre>
+      </div>
+      <div class="feat">
+        <div class="feat-cmd">/trace-map</div>
+        <h3>Generate architecture</h3>
+        <p>Creates ARCHITECTURE.md with mermaid dependency graphs and component descriptions. One command, full system overview.</p>
+<pre class="ascii ascii-dim" style="margin-top:12px;font-size:10px">
+ Booking ──▸ Payment ──▸ Stripe
+    │                      ▲
+    ▼                      │
+ WhatsApp            Webhook</pre>
+      </div>
+      <div class="feat">
+        <div class="feat-cmd">/trace-review</div>
+        <h3>Detect drift</h3>
+        <p>Scans for docs that fell behind the code. Reports severity. Offers to fix everything with one confirmation.</p>
+<pre class="ascii" style="margin-top:12px;font-size:10px">
+ <span class="ascii-red">■■</span> HIGH   README#payment-flow
+ <span class="ascii-amber">■□</span> MED    docs/api.md
+ <span class="ascii-green">□□</span> LOW    StripeWebhook (new)</pre>
+      </div>
+      <div class="feat">
+        <div class="feat-cmd">/trace-commit</div>
+        <h3>Smart commits</h3>
+        <p>Generates conventional commit messages from traces. feat, fix, refactor — with scope and breaking change flags.</p>
+<pre class="ascii ascii-dim" style="margin-top:12px;font-size:10px">
+ <span class="ascii-green">feat(payment):</span> migrate to
+ Stripe pre-authorization flow
+ <span class="ascii-red">BREAKING CHANGE:</span> PaymentService
+ API signature changed</pre>
+      </div>
+      <div class="feat">
+        <div class="feat-cmd">/trace-log</div>
+        <h3>Search history</h3>
+        <p>Query change history by component, date, or keyword. "What changed in PaymentService last month?" — instant answer.</p>
+<pre class="ascii ascii-dim" style="margin-top:12px;font-size:10px">
+ <span class="ascii-amber">▸</span> Mar 20  pre-auth migration
+ <span class="ascii-amber">▸</span> Mar 05  add refund support
+ <span class="ascii-amber">▸</span> Feb 28  Stripe SDK v14</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ DIVIDER ═══════════ -->
+<div class="divider reveal"><pre class="ascii ascii-dim ascii-sm">
+═══════════════════════════════════╡ HOW IT WORKS ╞════════════════════════════════</pre></div>
+
+<!-- ═══════════ HOW IT WORKS ═══════════ -->
+<section class="how" id="how">
+  <div class="section-inner">
+    <div class="how-header reveal">
+      <h2>Like a tape deck<br>for your codebase</h2>
+      <p style="color:var(--text-mid);font-size:16px;margin-top:8px">Pure prompt engineering. Zero runtime. Claude does all the thinking.</p>
+    </div>
+
+<div class="reveal">
+<pre class="ascii ascii-center" style="font-size:12px;line-height:1.5">
+<span class="ascii-amber">  ╔═══════════╗     ╔═══════════╗     ╔═══════════╗     ╔═══════════╗</span>
+<span class="ascii-amber">  ║</span>  <span class="ascii-green">INSTALL</span>  <span class="ascii-amber">║────▸║</span>    <span class="ascii-cyan">CODE</span>   <span class="ascii-amber">║────▸║</span>  <span class="ascii-amber">RECORD</span>   <span class="ascii-amber">║────▸║</span>   <span class="ascii-green">SYNC</span>    <span class="ascii-amber">║</span>
+<span class="ascii-amber">  ║</span> <span class="ascii-dim">npx code-</span> <span class="ascii-amber">║</span>     <span class="ascii-amber">║</span> <span class="ascii-dim">just vibe</span> <span class="ascii-amber">║</span>     <span class="ascii-amber">║</span>  <span class="ascii-dim">/trace</span>   <span class="ascii-amber">║</span>     <span class="ascii-amber">║</span> <span class="ascii-dim">/trace-</span>  <span class="ascii-amber">║</span>
+<span class="ascii-amber">  ║</span> <span class="ascii-dim">tape init</span> <span class="ascii-amber">║</span>     <span class="ascii-amber">║</span>    <span class="ascii-dim">✨</span>     <span class="ascii-amber">║</span>     <span class="ascii-amber">║</span>           <span class="ascii-amber">║</span>     <span class="ascii-amber">║</span>  <span class="ascii-dim">sync</span>    <span class="ascii-amber">║</span>
+<span class="ascii-amber">  ╚═══════════╝     ╚═══════════╝     ╚═══════════╝     ╚═══════════╝</span>
+<span class="ascii-dim">       │                  │                  │                  │</span>
+<span class="ascii-dim">  Sets up skill     Codetape stays     Writes semantic     Updates README</span>
+<span class="ascii-dim">  + .codetape/      invisible until     trace log with      CLAUDE.md and</span>
+<span class="ascii-dim">  + commands        you need it         decisions + TODOs   CHANGELOG</span>
+</pre>
+</div>
+  </div>
+</section>
+
+<!-- ═══════════ DIVIDER ═══════════ -->
+<div class="divider reveal"><pre class="ascii ascii-dim ascii-sm">
+═══════════════════════════════════════╡ DEMO ╞═════════════════════════════════════</pre></div>
+
+<!-- ═══════════ DEMO ═══════════ -->
+<section id="demo">
+  <div class="section-inner">
+    <div class="reveal" style="text-align:center;margin-bottom:32px">
+      <h2 style="font-size:clamp(28px,4.5vw,42px);font-weight:800;letter-spacing:-1.5px">30 seconds to first trace</h2>
+    </div>
+
+    <div class="terminal reveal">
+      <div class="term-bar">
+        <div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div>
+        <div class="term-title">~/projects/ride-flow — claude code</div>
+      </div>
+      <div class="term-body">
+<span class="tp">$</span> <span class="tc">npx codetape init</span>
+
+<span class="td">  Scanning project...</span>
+<span class="tg">  ✓</span> Detected: TypeScript + Next.js
+<span class="tg">  ✓</span> Found 23 components in src/
+<span class="tg">  ✓</span> Created .codetape/config.json
+<span class="tg">  ✓</span> Installed skill → .claude/skills/codetape/
+<span class="tg">  ✓</span> Added 7 commands → .claude/commands/
+<span class="td">  Done! Try /trace after your next session.</span>
+
+<span class="td">─────────────────────────────────────────</span>
+
+<span class="tp">claude▸</span> <span class="tc">/trace</span>
+
+<span class="td">  Analysing 12 modified files...</span>
+
+<span class="ta">  ┌─ Trace: stripe-preauth-flow ──────────┐</span>
+<span class="ta">  │</span>                                        <span class="ta">│</span>
+<span class="ta">  │</span>  Impact: <span class="tr">HIGH</span> — core payment changed    <span class="ta">│</span>
+<span class="ta">  │</span>                                        <span class="ta">│</span>
+<span class="ta">  │</span>  <span class="tcy">◉</span> PaymentService    <span class="td">refactored</span>       <span class="ta">│</span>
+<span class="ta">  │</span>  <span class="tcy">◉</span> StripeWebhook     <span class="tg">new</span>             <span class="ta">│</span>
+<span class="ta">  │</span>  <span class="tcy">◉</span> BookingFlow       <span class="td">modified</span>        <span class="ta">│</span>
+<span class="ta">  │</span>                                        <span class="ta">│</span>
+<span class="ta">  │</span>  Decision: PaymentIntent API over       <span class="ta">│</span>
+<span class="ta">  │</span>  Charges (SCA + delayed capture)        <span class="ta">│</span>
+<span class="ta">  │</span>                                        <span class="ta">│</span>
+<span class="ta">  │</span>  TODO: preauth expiry handling          <span class="ta">│</span>
+<span class="ta">  │</span>  TODO: webhook integration test         <span class="ta">│</span>
+<span class="ta">  │</span>                                        <span class="ta">│</span>
+<span class="ta">  └────────────────────────────────────────┘</span>
+
+<span class="tg">  ✓</span> Saved → .codetape/traces/2026-03-20_stripe-preauth.md
+<span class="tg">  ✓</span> Updated component-map.json (3 components)
+<span class="ta">  ⚠</span> README.md#payment-flow is outdated → /trace-sync
+      </div>
+    </div>
+
+    <!-- BEFORE / AFTER -->
+    <div class="ba reveal">
+      <div style="text-align:center">
+<pre class="ascii ascii-dim ascii-sm" style="margin-bottom:20px">
+        ┌──────────────┐          ┌──────────────┐
+        │    WITHOUT   │    vs    │     WITH     │
+        │   codetape   │          │   codetape   │
+        └──────────────┘          └──────────────┘</pre>
+      </div>
+      <div class="ba-grid">
+        <div class="ba-card before">
+<pre class="ascii" style="font-size:11px;line-height:1.75"><span class="ascii-red">  ╳</span> <span class="ascii-mid">commit: "update payment"</span>
+<span class="ascii-red">  ╳</span> <span class="ascii-mid">commit: "fix stripe stuff"</span>
+<span class="ascii-red">  ╳</span> <span class="ascii-mid">commit: "wip"</span>
+<span class="ascii-red">  ╳</span> <span class="ascii-mid">README says "instant charge"</span>
+<span class="ascii-red">  ╳</span> <span class="ascii-mid">CLAUDE.md describes old arch</span>
+<span class="ascii-red">  ╳</span> <span class="ascii-mid">New dev: "how does this work?"</span>
+<span class="ascii-dim">
+  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░</span></pre>
+        </div>
+        <div class="ba-card after">
+<pre class="ascii" style="font-size:11px;line-height:1.75"><span class="ascii-green">  ✓</span> <span class="ascii-mid">Trace: "pre-auth for SCA"</span>
+<span class="ascii-green">  ✓</span> <span class="ascii-mid">Decision: why pre-auth > charge</span>
+<span class="ascii-green">  ✓</span> <span class="ascii-mid">Component map auto-updated</span>
+<span class="ascii-green">  ✓</span> <span class="ascii-mid">README synced in one command</span>
+<span class="ascii-green">  ✓</span> <span class="ascii-mid">CLAUDE.md knows current arch</span>
+<span class="ascii-green">  ✓</span> <span class="ascii-mid">New dev reads ARCHITECTURE.md</span>
+<span class="ascii-green">
+  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ DIVIDER ═══════════ -->
+<div class="divider reveal"><pre class="ascii ascii-dim ascii-sm">
+═══════════════════════════════════════╡ GET STARTED ╞══════════════════════════════</pre></div>
+
+<!-- ═══════════ CTA ═══════════ -->
+<section class="cta">
+<div class="reveal">
+<pre class="ascii ascii-amber ascii-sm" style="margin-bottom:32px">
+            ╔════════════════════════════════════╗
+            ║   ▸▸  FAST FORWARD TO BETTER DOCS  ║
+            ╚════════════════════════════════════╝</pre>
+
+  <h2>Stop writing docs.<br><span style="color:var(--amber)">Let the tape roll.</span></h2>
+  <p>Free and open source. Zero dependencies. Works with Claude Code today. Cursor and Codex support coming soon.</p>
+
+  <div class="cta-btns">
+    <a href="#" class="btn-p">$ npx codetape init</a>
+    <a href="#" class="btn-s">★ View on GitHub</a>
+  </div>
+</div>
+
+<pre class="ascii ascii-dim" style="margin-top:48px;font-size:10px">
+    ▮▮ ░░░░░░░░░░░░░░░░▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░ ▮▮
+
+                    <span class="ascii-mid">MIT Licensed · Made by Nelson</span>
+             <span class="ascii-mid">Built with Claude Code · Documented by Codetape</span></pre>
+</section>
+
+<!-- ═══════════ FOOTER ═══════════ -->
+<footer>
+  <div class="footer-inner">
+    <span>■ codetape v0.1.0 · MIT</span>
+    <div class="footer-links">
+      <a href="#">GitHub</a>
+      <a href="#">npm</a>
+      <a href="#">docs</a>
+      <a href="#">r/ClaudeAI</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Scroll Reveal
+const revealObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); revealObs.unobserve(e.target); } });
+}, { threshold: 0.15 });
+document.querySelectorAll('.reveal,.reveal-children,.divider.reveal').forEach(el => revealObs.observe(el));
+
+// Hero split-letter animation
+(function() {
+  const heroH1 = document.querySelector('.hero h1');
+  if (!heroH1) return;
+  const html = heroH1.innerHTML;
+  let result = '';
+  let inTag = false;
+  let idx = 0;
+  for (let i = 0; i < html.length; i++) {
+    const ch = html[i];
+    if (ch === '<') { inTag = true; result += ch; continue; }
+    if (ch === '>') { inTag = false; result += ch; continue; }
+    if (inTag) { result += ch; continue; }
+    if (ch === ' ' || ch === '\n') {
+      result += '<span class="letter-space"> </span>';
+    } else {
+      result += '<span class="letter" style="animation-delay:' + (idx * 0.03).toFixed(2) + 's">' + ch + '</span>';
+      idx++;
+    }
+  }
+  heroH1.innerHTML = result;
+  // Delay subtitle and install row based on letter count
+  const totalTime = (idx * 0.03 + 0.4).toFixed(2);
+  const sub = document.querySelector('.hero-sub');
+  const install = document.querySelector('.install-row');
+  if (sub) sub.style.animationDelay = totalTime + 's';
+  if (install) install.style.animationDelay = (parseFloat(totalTime) + 0.2).toFixed(2) + 's';
+})();
+
+function copyCmd(el){
+  navigator.clipboard.writeText('npx codetape init');
+  const t=el.querySelector('.toast');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),1500);
+}
+
+// Drift Meters — animated fill on scroll
+function fillMeter(id, count, cls, baseDelay) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const total = 30;
+  let html = '';
+  for (let i = 0; i < total; i++) {
+    const isOn = i < count;
+    if (isOn) {
+      const delay = baseDelay + i * 0.025;
+      html += '<span class="on-' + cls + '" data-delay="' + delay.toFixed(3) + '"></span>';
+    } else {
+      html += '<span></span>';
+    }
+  }
+  el.innerHTML = html;
+}
+
+function triggerDriftFill() {
+  document.querySelectorAll('.drift-meter span[data-delay]').forEach(span => {
+    setTimeout(() => span.classList.add('filling'), parseFloat(span.dataset.delay) * 1000);
+  });
+}
+
+// Pre-build meters (hidden)
+fillMeter('dm-code', 28, 'g', 0);
+fillMeter('dm-git', 24, 'b', 0.15);
+fillMeter('dm-claude', 10, 'a', 0.3);
+fillMeter('dm-readme', 4, 'r', 0.45);
+fillMeter('dm-arch', 1, 'r', 0.6);
+fillMeter('dm-all', 27, 'g', 1.0);
+
+const driftEl = document.querySelector('.drift-display');
+let driftFilled = false;
+const driftObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting && !driftFilled) {
+      driftFilled = true;
+      triggerDriftFill();
+      setTimeout(() => driftEl.classList.add('drift-glow'), 1600);
+      driftObs.unobserve(driftEl);
+    }
+  });
+}, { threshold: 0.3 });
+if (driftEl) driftObs.observe(driftEl);
+</script>
+</body>
+</html>
