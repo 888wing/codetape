@@ -82,7 +82,7 @@ nav{
 .hero{
   min-height:100vh;display:flex;flex-direction:column;
   align-items:center;justify-content:center;
-  padding:100px 24px 60px;position:relative;
+  padding:100px 24px 60px;position:relative;overflow:hidden;
 }
 .hero::before{
   content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
@@ -199,6 +199,7 @@ section{padding:80px 24px;position:relative}
 .feat{
   background:var(--bg);padding:28px;
   transition:background .2s;position:relative;
+  transform-style:preserve-3d;will-change:transform;
 }
 .feat:hover{background:var(--surface)}
 .feat-cmd{
@@ -322,6 +323,18 @@ footer{
 /* SCROLL BOUNCE */
 .scroll-hint{animation:bounce 2s ease-in-out infinite}
 @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+
+/* HERO CANVAS */
+#hero-canvas{position:absolute;inset:0;z-index:0;pointer-events:none}
+.hero>*:not(#hero-canvas){position:relative;z-index:1}
+
+/* FEATURE CARD TILT */
+.feat::before{
+  content:'';position:absolute;inset:0;opacity:0;
+  transition:opacity 0.3s;pointer-events:none;z-index:1;
+  background:radial-gradient(400px circle at var(--glow-x,50%) var(--glow-y,50%),rgba(240,160,48,0.08),transparent 60%);
+}
+.feat:hover::before{opacity:1}
 </style>
 </head>
 <body>
@@ -342,6 +355,7 @@ footer{
 
 <!-- ═══════════ HERO ═══════════ -->
 <section class="hero">
+  <canvas id="hero-canvas"></canvas>
   <div class="hero-ascii">
 <pre class="ascii ascii-amber" style="font-size:12px">
     ┌──────────────────────────────────────────────────┐
@@ -802,6 +816,81 @@ const driftObs = new IntersectionObserver((entries) => {
   });
 }, { threshold: 0.3 });
 if (driftEl) driftObs.observe(driftEl);
+
+// Hero canvas waveform
+(function() {
+  const canvas = document.getElementById('hero-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let mx = 0.5, my = 0.5, w, h;
+  const isMobile = window.matchMedia('(pointer:coarse)').matches;
+
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    w = canvas.width = rect.width;
+    h = canvas.height = rect.height;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  if (!isMobile) {
+    canvas.parentElement.addEventListener('mousemove', (e) => {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      mx = (e.clientX - rect.left) / rect.width;
+      my = (e.clientY - rect.top) / rect.height;
+    });
+  }
+
+  let t = 0;
+  function draw() {
+    t += 0.008;
+    ctx.clearRect(0, 0, w, h);
+    for (let line = 0; line < 5; line++) {
+      const yBase = h * (0.3 + line * 0.1);
+      const amplitude = 20 + line * 8 + (isMobile ? 0 : (my - 0.5) * 30);
+      const freq = 0.003 + line * 0.001;
+      const phase = t + line * 0.8;
+      const alpha = 0.04 + line * 0.015;
+      ctx.beginPath();
+      ctx.moveTo(0, yBase);
+      for (let x = 0; x < w; x += 3) {
+        const mouseInf = isMobile ? 0 : Math.exp(-Math.pow((x / w - mx) * 3, 2)) * 25;
+        const y = yBase + Math.sin(x * freq + phase) * amplitude
+                  + Math.sin(x * freq * 2.3 + phase * 1.5) * amplitude * 0.3
+                  + mouseInf * Math.sin(x * 0.01 + t * 2);
+        ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = 'rgba(240,160,48,' + alpha + ')';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    requestAnimationFrame(draw);
+  }
+
+  // Only run canvas animation on non-touch devices
+  if (!isMobile) draw();
+})();
+
+// Feature card 3D tilt
+(function() {
+  const isMobile = window.matchMedia('(pointer:coarse)').matches;
+  if (isMobile) return;
+  document.querySelectorAll('.feat').forEach(card => {
+    card.addEventListener('mousemove', (e) => {
+      const rect = card.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      const rotateX = (0.5 - y) * 16;
+      const rotateY = (x - 0.5) * 16;
+      card.style.transform = 'perspective(600px) rotateX(' + rotateX + 'deg) rotateY(' + rotateY + 'deg) scale(1.02)';
+      card.style.setProperty('--glow-x', (x * 100) + '%');
+      card.style.setProperty('--glow-y', (y * 100) + '%');
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = '';
+    });
+  });
+})();
 </script>
 </body>
 </html>
