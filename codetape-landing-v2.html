@@ -295,10 +295,25 @@ footer{
   .drift-meter span{width:6px;height:10px}
   nav .nav-links a:not(.nav-cta){display:none}
   .footer-inner{flex-direction:column;gap:12px}
+  .feat{transform:none!important}
+  .feat::before{display:none}
+  .btn-p{transform:none!important}
+  .btn-p::after{display:none}
+  .ba-slider{height:240px}
 }
 @media(max-width:480px){
   .hero-ascii{transform:scale(0.42)}
   .problem-item{flex-direction:column;gap:4px}
+  .ba-slider{height:220px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}
+  .hero h1 .letter{opacity:1;transform:none;animation:none}
+  .reveal,.reveal-children>*{opacity:1;transform:none;transition:none}
+  .divider pre{max-width:800px}
+  .drift-meter span{opacity:1;transform:none}
+  #hero-canvas{display:none}
 }
 
 /* SCROLL REVEAL */
