@@ -1,0 +1,13 @@
+{
+  "name": "codetape",
+  "description": "The flight recorder for AI coding — keeps your docs in sync with your code",
+  "version": "0.1.0",
+  "author": {
+    "name": "888wing"
+  },
+  "homepage": "https://codetape.win",
+  "repository": {
+    "url": "https://github.com/888wing/codetape"
+  },
+  "license": "MIT"
+}

@@ -9,7 +9,11 @@
     "bin/",
     "src/",
     "skill/",
-    "scripts/"
+    "skills/",
+    "commands/",
+    "scripts/",
+    ".claude-plugin/",
+    "AGENTS.md"
   ],
   "keywords": [
     "claude-code",
