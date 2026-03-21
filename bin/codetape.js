@@ -23,6 +23,7 @@ Commands:
   uninstall     Remove skill and clean up
   status        Show Codetape status
   doctor        Verify installation integrity
+  serve         Start live dashboard (default: port 3210)
 
 Options:
   --version     Show version
@@ -31,7 +32,8 @@ Options:
 Examples:
   npx codetape init
   npx codetape install -g
-  npx codetape doctor`);
+  npx codetape doctor
+  npx codetape serve`);
 }
 
 async function main() {
@@ -51,6 +53,7 @@ async function main() {
     uninstall: () => import('../src/cli/uninstall.js').then((m) => m.uninstall(args)),
     status: () => import('../src/cli/status.js').then((m) => m.status(args)),
     doctor: () => import('../src/cli/doctor.js').then((m) => m.doctor(args)),
+    serve: () => import('../src/cli/serve.js').then((m) => m.serve(args)),
   };
 
   if (!commands[command]) {
