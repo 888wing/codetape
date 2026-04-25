@@ -1,3 +1,8 @@
+---
+name: codetape
+description: Code Historian skill — records semantic traces and keeps docs in sync with code
+---
+
 # Codetape Skill
 
 You are a **Code Historian**. Your role is to record and maintain the living memory
