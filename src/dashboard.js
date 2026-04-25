@@ -42,7 +42,7 @@ export function generateDashboard(data, version) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>codetape dashboard - ${escapeHtml(projectName)}</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"><\/script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.5/dist/mermaid.min.js" integrity="sha384-enVdc7lTHDGtpROV85t9+VqPC2EyyB0hsRD0MrvQnHUsHmTHIz2D8SPP4EnBkstH" crossorigin="anonymous"><\/script>
   <style>
     :root {
       --bg: #08080a;
