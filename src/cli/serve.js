@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { watch, existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { exec } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { loadCodetapeData } from '../utils/load-codetape-data.js';
 import { generateDashboard } from '../dashboard.js';
 
@@ -47,7 +47,7 @@ export async function serve(args) {
       const data = loadCodetapeData(projectDir);
       res.writeHead(200, {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
+        'Access-Control-Allow-Origin': `http://localhost:${port}`
       });
       res.end(JSON.stringify(data));
       return;
@@ -59,7 +59,7 @@ export async function serve(args) {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*'
+        'Access-Control-Allow-Origin': `http://localhost:${port}`
       });
       res.write('data: connected\n\n');
       sseClients.add(res);
@@ -99,7 +99,7 @@ export async function serve(args) {
     const openCmd = process.platform === 'darwin' ? 'open'
       : process.platform === 'win32' ? 'start'
       : 'xdg-open';
-    exec(`${openCmd} ${url}`);
+    execFile(openCmd, [url]);
   });
 
   // 9. Handle port already in use
